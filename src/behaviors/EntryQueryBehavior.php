@@ -38,6 +38,9 @@ class EntryQueryBehavior extends Behavior
     public $includeToday;
 
     public $startsAfterDate = null;
+    public $startsBeforeDate = null;
+
+    public $startsWithinDate = null;
 
     public $endsBeforeDate = null;
 
@@ -115,6 +118,36 @@ class EntryQueryBehavior extends Behavior
 
         return $this->owner;
     }
+
+    public function startsBeforeDate(
+        string|array $value,
+        string|DateTimeInterface|int $date = null,
+        string|bool $entryTypeHandle = null
+    ): Component|null {
+        $value = $this->parseDateArgumentValue($value, $date, $entryTypeHandle);
+
+        $this->handle = $value['handle'];
+        $this->startsBeforeDate = $value['date'];
+        $this->entryTypeHandle = $value['entryTypeHandle'];
+
+        return $this->owner;
+    }
+
+    public function startsWithinDateRange(
+        string|array $value,
+        string|DateTimeInterface|int $date = null,
+        string|bool $entryTypeHandle = null
+    ): Component|null {
+
+        $value = $this->parseDateRangeArgumentValue($value, $date, $entryTypeHandle);
+
+        $this->handle = $value['handle'];
+        $this->startsWithinDate = $value['dateRange'];
+        $this->entryTypeHandle = $value['entryTypeHandle'];
+
+        return $this->owner;
+    }
+
 
     public function endsBeforeDate(
         string|array $value,
@@ -231,6 +264,36 @@ class EntryQueryBehavior extends Behavior
             }
 
             if (
+                $field && $this->startsBeforeDate
+                && ($date = DateTimeHelper::toDateTime($this->startsBeforeDate))
+            ) {
+                $this->owner->subQuery
+                    ->andWhere(Db::parseDateParam(
+                        $field->getValueSql('start'),
+                        $date->format('Y-m-d'),
+                        '<'
+                    ));
+            }
+
+
+            if (
+                $field && $this->startsWithinDate
+                && ($dateRange = DateRange::toDateRange($this->startsWithinDate))
+            ) {
+                $this->owner->subQuery
+                    ->andWhere(Db::parseDateParam(
+                        $field->getValueSql('start'),
+                        $dateRange['start']->format('Y-m-d'),
+                        '>='
+                    ))
+                    ->andWhere(Db::parseDateParam(
+                        $field->getValueSql('start'),
+                        $dateRange['end']->format('Y-m-d'),
+                        '<='
+                    ));
+            }
+
+            if (
                 $field && $this->endsBeforeDate
                 && ($date = DateTimeHelper::toDateTime($this->endsBeforeDate))
             ) {
@@ -281,6 +344,7 @@ class EntryQueryBehavior extends Behavior
         } elseif (Craft::$app->db->getIsMysql()) {
             /** @var \craft\base\FieldInterface|null $field */
             $field = $this->field;
+
             if ($field && $this->isFuture) {
                 $this->owner->subQuery
                     ->andWhere(Db::parseDateParam(
@@ -332,6 +396,35 @@ class EntryQueryBehavior extends Behavior
                         $field->getValueSql('start'),
                         $date->format('Y-m-d'),
                         '>'
+                    ));
+            }
+
+            if (
+                $field && $this->startsBeforeDate
+                && ($date = DateTimeHelper::toDateTime($this->startsBeforeDate))
+            ) {
+                $this->owner->subQuery
+                    ->andWhere(Db::parseDateParam(
+                        $field->getValueSql('start'),
+                        $date->format('Y-m-d'),
+                        '<'
+                    ));
+            }
+
+            if (
+                $field && $this->startsWithinDate
+                && ($dateRange = DateRange::toDateRange($this->startsWithinDate))
+            ) {
+                $this->owner->subQuery
+                    ->andWhere(Db::parseDateParam(
+                        $field->getValueSql('start'),
+                        $dateRange['start']->format('Y-m-d'),
+                        '>='
+                    ))
+                    ->andWhere(Db::parseDateParam(
+                        $field->getValueSql('start'),
+                        $dateRange['end']->format('Y-m-d'),
+                        '<='
                     ));
             }
 
